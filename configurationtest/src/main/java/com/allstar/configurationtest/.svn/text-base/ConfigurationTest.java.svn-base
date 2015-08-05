@@ -1,0 +1,48 @@
+/**
+ *
+ * Copyright (c) 2015
+ * All rights reserved.
+ *
+ * @Title ConfigurationTest.java
+ * @Package com.allstar.configuration
+ * @author ProbeStar
+ * @Email probestar@qq.com
+ * @QQ 344137375
+ * @date Jul 28, 2015 5:11:04 PM
+ * @version V1.0
+ * @Description 
+ *
+ */
+
+package com.allstar.configurationtest;
+
+import com.allstar.cinutils.CinTracer;
+import com.allstar.configuration.Configuration;
+import com.allstar.configuration.ConfigurationReciever;
+import com.allstar.configuration.model.ConfigurationData;
+
+public class ConfigurationTest {
+	private static CinTracer _tracer = CinTracer.getInstance(ConfigurationTest.class);
+
+	public static void main(String[] args) {
+		try {
+			Configuration.getInstance().initConfigurationData("MessageProxy", new ConfigurationReciever() {
+				public void onConfigurationReceived(ConfigurationData data) {
+					_tracer.info("onConfigurationReceived: " + data.toString());
+				}
+			});
+
+			Configuration.getInstance().initClientUpdate(new ConfigurationReciever() {
+				public void onConfigurationReceived(ConfigurationData data) {
+					_tracer.info("onConfigurationReceived: " + data.toString());
+				}
+			});
+
+			synchronized (ConfigurationTest.class) {
+				ConfigurationTest.class.wait();
+			}
+		} catch (Throwable t) {
+			t.printStackTrace();
+		}
+	}
+}
