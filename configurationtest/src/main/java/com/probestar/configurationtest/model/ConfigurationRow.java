@@ -67,12 +67,10 @@ public class ConfigurationRow extends ConfigurationData {
 		return _enable;
 	}
 
-	public String getKey() {
-		return String.format("%s_%s_%s_%s", getKeyword(), getServiceName(), getModuleName(), getComputerName());
-	}
-
+	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
+		sb.append(super.toString());
 		sb.append("Keyword: ");
 		sb.append(_keyword);
 		sb.append("; Value: ");

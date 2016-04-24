@@ -92,12 +92,10 @@ public class ClientUpdateRow extends ConfigurationData {
 		return _releaseTime;
 	}
 
-	public String getKey() {
-		return String.format("%s_%s", getClientType(), getClientVersion());
-	}
-
+	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
+		sb.append(super.toString());
 		sb.append("ClientType: ");
 		sb.append(_clientType);
 		sb.append("; ClientVersion: ");

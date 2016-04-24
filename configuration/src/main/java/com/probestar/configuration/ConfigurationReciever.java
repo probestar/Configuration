@@ -20,6 +20,8 @@ import com.probestar.configuration.model.ConfigurationData;
 
 public interface ConfigurationReciever<T extends ConfigurationData> {
 
-	void onConfigurationReceived(T data);
+	void onConfigurationReceived(String key, T data);
+
+	void onConfigurationRemoved(String key);
 
 }

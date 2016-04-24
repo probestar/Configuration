@@ -41,7 +41,7 @@ public class ReloadHandler extends CTHandler {
 	}
 
 	public CTResult handle(String[] paramters) throws Throwable {
-		String url = "jdbc:mysql://10.10.209.31:5624/urapport_config?useUnicode=true&amp;characterEncoding=utf8&amp;autoReconnect=true&user=centosuser&password=user2012";
+		String url = "jdbc:mysql://10.10.169.63:5624/urapport_config?useUnicode=true&amp;characterEncoding=utf8&amp;autoReconnect=true&user=centosuser&password=user2012";
 		if (paramters.length > 1)
 			url = paramters[1];
 

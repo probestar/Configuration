@@ -22,7 +22,6 @@ import java.util.Properties;
 import com.probestar.configuration.Configuration;
 import com.probestar.configuration.ConfigurationReciever;
 import com.probestar.configuration.ConfigurationSettings;
-import com.probestar.configurationtest.model.ClientUpdateRow;
 import com.probestar.configurationtest.model.ConfigurationRow;
 import com.probestar.configurationtest.model.ConfigurationTable;
 import com.probestar.psutils.PSTracer;
@@ -35,16 +34,23 @@ public class ConfigurationTest {
 			Configuration.getInstance().setSettings(loadSettings());
 			Configuration.getInstance().initConfiguration(ConfigurationTable.Configuration, ConfigurationRow.class,
 					new ConfigurationReciever<ConfigurationRow>() {
-						public void onConfigurationReceived(ConfigurationRow row) {
-							_tracer.info(row.toString());
+						public void onConfigurationReceived(String key, ConfigurationRow row) {
+							_tracer.info("[" + key + "]" + row.toString());
+						}
+
+						@Override
+						public void onConfigurationRemoved(String key) {
+							_tracer.info("[" + key + "] has been remvoed. ");
 						}
 					});
 
-			Configuration.getInstance().initConfiguration(ConfigurationTable.ClientUpdate, ClientUpdateRow.class, new ConfigurationReciever<ClientUpdateRow>() {
-				public void onConfigurationReceived(ClientUpdateRow row) {
-					_tracer.info(row.toString());
-				}
-			});
+			// Configuration.getInstance().initConfiguration(ConfigurationTable.ClientUpdate,
+			// ClientUpdateRow.class, new
+			// ConfigurationReciever<ClientUpdateRow>() {
+			// public void onConfigurationReceived(ClientUpdateRow row) {
+			// _tracer.info(row.toString());
+			// }
+			// });
 
 			synchronized (ConfigurationTest.class) {
 				ConfigurationTest.class.wait();

@@ -16,7 +16,19 @@
 
 package com.probestar.configuration.model;
 
-public abstract class ConfigurationData {
+import java.util.UUID;
 
-	public abstract String getKey();
+public class ConfigurationData {
+	private transient String _key;
+
+	public String getKey() {
+		if (_key == null)
+			_key = UUID.randomUUID().toString();
+		return _key;
+	}
+
+	@Override
+	public String toString() {
+		return "";
+	}
 }

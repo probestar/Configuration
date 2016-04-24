@@ -23,7 +23,7 @@ public class ConfigurationTableManager {
 	private static HashMap<String, String> _names = new HashMap<String, String>();
 	private static HashMap<String, Class<?>> _classes = new HashMap<String, Class<?>>();
 
-	static void addTableName(String tableName, Class<?> clazz) {
+	public static void addTableName(String tableName, Class<?> clazz) {
 		_names.put(tableName.toUpperCase(), tableName);
 		_classes.put(tableName.toUpperCase(), clazz);
 	}

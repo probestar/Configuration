@@ -3,11 +3,11 @@ package com.probestar.configurationtools;
 import java.io.FileInputStream;
 import java.util.Properties;
 
-import org.apache.log4j.PropertyConfigurator;
-
 import com.probestar.configuration.Configuration;
 import com.probestar.configuration.ConfigurationSettings;
 import com.probestar.configuration.ConfigurationTableManager;
+import com.probestar.configurationtest.model.ClientUpdateRow;
+import com.probestar.configurationtest.model.ConfigurationTable;
 import com.probestar.configurationtools.handler.AddHandler;
 import com.probestar.configurationtools.handler.ClearHandler;
 import com.probestar.configurationtools.handler.GetHandler;
@@ -29,7 +29,6 @@ public class CTEntry {
 
 	public static void main(String[] args) {
 		try {
-			PropertyConfigurator.configure("log4j.properties");
 			Configuration.getInstance().setSettings(loadSettings());
 			if (!initRootPath())
 				return;
@@ -94,6 +93,8 @@ public class CTEntry {
 	}
 
 	private static void initTablePath() throws Throwable {
+		ConfigurationTableManager.addTableName(ConfigurationTable.Configuration, ClientUpdateRow.class);
+		ConfigurationTableManager.addTableName(ConfigurationTable.ClientUpdate, ClientUpdateRow.class);
 		String name = CTSession.getInstance().getOperatorName();
 		String pwd = CTSession.getInstance().getPassword();
 		for (String tableName : ConfigurationTableManager.getAllTableNames())

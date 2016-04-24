@@ -40,6 +40,7 @@ public class ZKBridge implements Watcher {
 	private String _tableName;
 	private String _name;
 	private String _password;
+	private boolean _closed;
 	private ArrayList<ZKBridgeListener> _listeners;
 	private ZooKeeper _zk;
 	private List<ACL> _acl;
@@ -54,9 +55,9 @@ public class ZKBridge implements Watcher {
 			_tableName = tableName;
 			_name = userName;
 			_password = password;
+			_closed = false;
 			_listeners = new ArrayList<ZKBridgeListener>();
-			String s = tableName.isEmpty() ? conn : String.format("%s/%s", conn, tableName);
-			_zk = createZooKeeper(s, userName, password);
+			_zk = createZooKeeper();
 			_acl = createAclList(userName, password);
 		} catch (Throwable e) {
 			_tracer.error("ZKBridge.ZKBridge error.", e);
@@ -78,7 +79,12 @@ public class ZKBridge implements Watcher {
 	public boolean exists(String key) {
 		String path = getPath(key);
 		try {
-			return !(_zk.exists(path, false) == null);
+			boolean exists = !(_zk.exists(path, false) == null);
+			if (exists)
+				_tracer.info("Path %s exists", path);
+			else
+				_tracer.info("Path %s not exists", path);
+			return exists;
 		} catch (Throwable t) {
 			_tracer.error("ZKBridge.exists", t);
 			return false;
@@ -88,7 +94,7 @@ public class ZKBridge implements Watcher {
 	public void create(String key, byte[] data) throws Throwable {
 		String path = getPath(key);
 		try {
-			if (!exists(key)) {
+			if (!exists(path)) {
 				_zk.create(path, data, _acl, CreateMode.PERSISTENT);
 				_tracer.info("Path %s has been created.", path);
 			}
@@ -103,59 +109,76 @@ public class ZKBridge implements Watcher {
 	}
 
 	public List<String> list() throws Throwable {
-		return _zk.getChildren("/", null);
+		List<String> list = _zk.getChildren("/", false);
+		_tracer.debug("Get list: " + list.toString());
+		return list;
 	}
 
 	public void set(String key, byte[] value) throws Throwable {
-		_zk.setData(getPath(key), value, -1);
+		String path = getPath(key);
+		_zk.setData(path, value, -1);
+		_tracer.info("Set %s to %s.", path, PSConvert.bytes2HexString(value));
 	}
 
 	public byte[] get(String key) throws Throwable {
 		byte[] b = null;
-		b = _zk.getData(getPath(key), null, null);
+		String path = getPath(key);
+		b = _zk.getData(path, false, null);
+		_tracer.debug("%s: %s", path, PSConvert.bytes2HexString(b));
 		return b;
 	}
 
-	public void close() {
+	public synchronized void close() {
 		try {
+			_closed = true;
 			_zk.close();
+			_tracer.info("[" + _zk.toString() + "] has been closed.");
 		} catch (InterruptedException t) {
 			_tracer.error("ZKBridge.close error.", t);
 		}
 	}
 
-	public void process(WatchedEvent event) {
+	@Override
+	public synchronized void process(WatchedEvent event) {
 		_tracer.info("Received Event: " + event.toString());
 		try {
 			switch (event.getState()) {
 			case Expired:
+				_closed = true;
 				_zk.close();
-				_zk = createZooKeeper(_conn, _name, _password);
+				_tracer.info("[" + _zk.toString() + "] has been closed for receiving expired event.");
+				_zk = createZooKeeper();
 				break;
 			case SyncConnected:
 				switch (event.getType()) {
 				case None:
+				case NodeChildrenChanged:
+					continued("/");
 					fireNodesChanged();
-					_zk.exists("/", this);
 					break;
 				case NodeDataChanged:
-					if (event.getPath().equalsIgnoreCase("/"))
-						fireNodesChanged();
-					_zk.exists("/", this);
+					continued(event.getPath());
+					fireNodeChanged(event.getPath());
+					break;
+				case NodeDeleted:
+					fireNodeDeleted(event.getPath());
 					break;
 				default:
+					_tracer.error("Got unhandled Event. " + event.toString());
+					continued("/");
+					fireNodesChanged();
 					break;
 				}
 				break;
 			default:
 				break;
 			}
-
 		} catch (Throwable t) {
-			_tracer.error("ZKBridge.process error.", t);
+			_tracer.error("ZKBridge.process error. " + event.toString(), t);
 		}
 	}
 
+	@Override
 	public String toString() {
 		return _zk == null ? super.toString() : _zk.toString();
 	}
@@ -163,7 +186,12 @@ public class ZKBridge implements Watcher {
 	private void fireNodeChanged(String path) throws Throwable {
 		byte[] data = get(path);
 		for (ZKBridgeListener listener : _listeners)
-			listener.onNodeChanged(_tableName, data);
+			listener.onNodeChanged(_tableName, path, data);
+	}
+
+	private void fireNodeDeleted(String path) throws Throwable {
+		for (ZKBridgeListener listener : _listeners)
+			listener.onNodeRemoved(_tableName, path);
 	}
 
 	private void fireNodesChanged() throws Throwable {
@@ -176,10 +204,12 @@ public class ZKBridge implements Watcher {
 		return key.startsWith("/") ? key : "/" + key;
 	}
 
-	private ZooKeeper createZooKeeper(String conn, String name, String password) throws Exception {
+	private ZooKeeper createZooKeeper() throws Exception {
+		_closed = false;
+		String conn = _tableName.isEmpty() ? _conn : String.format("%s/%s", _conn, _tableName);
 		ZooKeeper zk = new ZooKeeper(conn, 5000, this);
-		if (name != null && password != null)
-			zk.addAuthInfo("digest", String.format("%s:%s", name, password).getBytes());
+		if (_name != null && _password != null)
+			zk.addAuthInfo("digest", String.format("%s:%s", _name, _password).getBytes());
 		return zk;
 	}
 
@@ -192,5 +222,14 @@ public class ZKBridge implements Watcher {
 		}
 		list.addAll(Ids.READ_ACL_UNSAFE);
 		return list;
+	}
+
+	private void continued(String path) throws KeeperException, InterruptedException {
+		if (path == null)
+			path = "/";
+		List<String> children = _zk.getChildren(path, true);
+		_zk.exists(path, true);
+		for (String child : children)
+			_zk.exists(path + child, true);
 	}
 }

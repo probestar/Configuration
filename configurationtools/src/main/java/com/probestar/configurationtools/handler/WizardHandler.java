@@ -55,9 +55,12 @@ public class WizardHandler extends CTHandler {
 			break;
 		}
 
-		if (key != null)
-			getBridge().delete(key);
-		getBridge().create(newData.getKey(), ConfigurationEncoder.encode1(newData));
+		if (key == null) {
+			key = newData.getKey();
+			getBridge().create(key, ConfigurationEncoder.encode1(newData));
+		} else {
+			getBridge().set(key, ConfigurationEncoder.encode1(newData));
+		}
 		return new CTResult("OK.");
 	}
 

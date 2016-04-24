@@ -18,6 +18,8 @@ package com.probestar.configuration.zk;
 
 public interface ZKBridgeListener {
 
-	void onNodeChanged(String tableName, byte[] data);
+	void onNodeChanged(String tableName, String key, byte[] data);
+
+	void onNodeRemoved(String tableName, String key);
 
 }

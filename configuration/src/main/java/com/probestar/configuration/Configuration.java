@@ -19,8 +19,6 @@ package com.probestar.configuration;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
-import org.apache.log4j.PropertyConfigurator;
-
 import com.probestar.configuration.codec.ConfigurationDecoder;
 import com.probestar.configuration.model.ConfigurationData;
 import com.probestar.configuration.zk.ZKBridge;
@@ -48,7 +46,6 @@ public class Configuration implements ZKBridgeListener {
 	}
 
 	private Configuration() {
-		PropertyConfigurator.configure("log4j.properties");
 		_bridges = new HashMap<String, ZKBridge>();
 		_receivers = new HashMap<String, ConfigurationReciever<? extends ConfigurationData>>();
 	}
@@ -109,13 +106,23 @@ public class Configuration implements ZKBridgeListener {
 	}
 
 	@SuppressWarnings("unchecked")
-	public void onNodeChanged(String tableName, byte[] data) {
+	@Override
+	public void onNodeChanged(String tableName, String key, byte[] data) {
 		ConfigurationData row = (ConfigurationData) ConfigurationDecoder.decode(data, ConfigurationTableManager.getClass(tableName));
 		if (row == null)
 			return;
 		ConfigurationReciever<ConfigurationData> receiver = (ConfigurationReciever<ConfigurationData>) _receivers.get(tableName);
 		if (receiver == null)
 			return;
-		receiver.onConfigurationReceived(row);
+		receiver.onConfigurationReceived(key, row);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void onNodeRemoved(String tableName, String key) {
+		ConfigurationReciever<ConfigurationData> receiver = (ConfigurationReciever<ConfigurationData>) _receivers.get(tableName);
+		if (receiver == null)
+			return;
+		receiver.onConfigurationRemoved(key);
 	}
 }
