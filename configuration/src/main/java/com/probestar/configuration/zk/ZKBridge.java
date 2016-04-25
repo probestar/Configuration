@@ -40,7 +40,6 @@ public class ZKBridge implements Watcher {
 	private String _tableName;
 	private String _name;
 	private String _password;
-	private boolean _closed;
 	private ArrayList<ZKBridgeListener> _listeners;
 	private ZooKeeper _zk;
 	private List<ACL> _acl;
@@ -55,7 +54,6 @@ public class ZKBridge implements Watcher {
 			_tableName = tableName;
 			_name = userName;
 			_password = password;
-			_closed = false;
 			_listeners = new ArrayList<ZKBridgeListener>();
 			_zk = createZooKeeper();
 			_acl = createAclList(userName, password);
@@ -130,7 +128,6 @@ public class ZKBridge implements Watcher {
 
 	public synchronized void close() {
 		try {
-			_closed = true;
 			_zk.close();
 			_tracer.info("[" + _zk.toString() + "] has been closed.");
 		} catch (InterruptedException t) {
@@ -144,7 +141,6 @@ public class ZKBridge implements Watcher {
 		try {
 			switch (event.getState()) {
 			case Expired:
-				_closed = true;
 				_zk.close();
 				_tracer.info("[" + _zk.toString() + "] has been closed for receiving expired event.");
 				_zk = createZooKeeper();
@@ -205,7 +201,6 @@ public class ZKBridge implements Watcher {
 	}
 
 	private ZooKeeper createZooKeeper() throws Exception {
-		_closed = false;
 		String conn = _tableName.isEmpty() ? _conn : String.format("%s/%s", _conn, _tableName);
 		ZooKeeper zk = new ZooKeeper(conn, 5000, this);
 		if (_name != null && _password != null)
