@@ -1,5 +1,4 @@
 /**
- *
  * Copyright (c) 2015
  * All rights reserved.
  *
@@ -10,119 +9,166 @@
  * @QQ 344137375
  * @date Jul 28, 2015 4:56:44 PM
  * @version V1.0
- * @Description 
- *
+ * @Description
  */
 
 package com.probestar.configuration;
 
-import java.util.HashMap;
-import java.util.Map.Entry;
-
+import com.google.common.base.Preconditions;
 import com.probestar.configuration.codec.ConfigurationDecoder;
+import com.probestar.configuration.common.ConfigurationReciever;
+import com.probestar.configuration.common.ConfigurationTracerFactory;
 import com.probestar.configuration.model.ConfigurationData;
+import com.probestar.configuration.model.ConfigurationRow;
+import com.probestar.configuration.utils.ConfigurationSettings;
+import com.probestar.configuration.utils.ConfigurationTracerHelper;
 import com.probestar.configuration.zk.ZKBridge;
 import com.probestar.configuration.zk.ZKBridgeListener;
-import com.probestar.psutils.PSTracer;
+
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.util.HashMap;
 
 public class Configuration implements ZKBridgeListener {
-	private static PSTracer _tracer = PSTracer.getInstance(Configuration.class);
-	private static Configuration _instance;
+    private static ConfigurationTracerHelper _tracer = ConfigurationTracerHelper.getInstance(Configuration.class);
+    private static Configuration _instance;
 
-	private ConfigurationSettings _settings;
-	private HashMap<String, ZKBridge> _bridges;
-	private HashMap<String, ConfigurationReciever<? extends ConfigurationData>> _receivers;
+    private ConfigurationSettings _settings;
+    private ZKBridge _bridge;
+    private HashMap<String, ConfigurationReciever<? extends ConfigurationData>> _receivers;
 
-	static {
-		try {
-			_instance = new Configuration();
-		} catch (Throwable t) {
-			_tracer.error("Configuration error.", t);
-		}
-	}
+    public static void initialize() throws IOException {
+        _instance = new Configuration();
+    }
 
-	public static Configuration getInstance() {
-		return _instance;
-	}
+    public static Configuration getInstance() {
+        return _instance;
+    }
 
-	private Configuration() {
-		_bridges = new HashMap<String, ZKBridge>();
-		_receivers = new HashMap<String, ConfigurationReciever<? extends ConfigurationData>>();
-	}
+    private Configuration() throws IOException {
+        ConfigurationSettings.initialize();
+        _settings = ConfigurationSettings.getInstance();
+        _bridge = new ZKBridge(_settings.getZookeepers());
+        _bridge.register(this);
+        _bridge.start();
+        _receivers = new HashMap<String, ConfigurationReciever<? extends ConfigurationData>>();
+    }
 
-	public void setSettings(ConfigurationSettings settings) {
-		_settings = settings;
-	}
+    public void registerConfigurationTracerFactory(ConfigurationTracerFactory factory) {
+        ConfigurationTracerHelper.registerConfigurationTracerFactory(factory);
+    }
 
-	public boolean checkRootPath() {
-		ZKBridge bridge = new ZKBridge(_settings.getAddress(), "");
-		boolean exist = bridge.exists(_settings.getPath());
-		bridge.close();
-		return exist;
-	}
+    public void initConfiguration(ConfigurationReciever<? extends ConfigurationData> receiver) {
+        Preconditions.checkNotNull(receiver, "receiver");
 
-	public void createRootPath(String userName, String password) throws Throwable {
-		ZKBridge bridge = new ZKBridge(_settings.getAddress(), "", userName, password);
-		bridge.create(_settings.getPath(), "probestar@qq.com".getBytes());
-		bridge.close();
-	}
+        try {
+            String tableName = receiver.getTableName();
+            _receivers.put(tableName, receiver);
+            _bridge.fireNodesChanged(tableName);
+        } catch (Throwable t) {
+            _tracer.error("Configuration.initConfigurationData error.", t);
+        }
+    }
 
-	public void initConfiguration(String tableName, Class<?> clazz, ConfigurationReciever<? extends ConfigurationData> receiver) {
-		if (tableName == null)
-			throw new NullPointerException("moduleName");
-		if (receiver == null)
-			throw new NullPointerException("receiver");
+    @Override
+    public void onConnected() {
+        try {
+            _bridge.fireNodesChanged("/");
+        } catch (Throwable t) {
+            _tracer.error("Configuration.onConnected error.", t);
+        }
+    }
 
-		try {
-			ConfigurationTableManager.addTableName(tableName, clazz);
-			_receivers.put(tableName, receiver);
-			getBridge(tableName);
-		} catch (Throwable t) {
-			_tracer.error("Configuration.initConfigurationData error.", t);
-		}
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public void onNodeChanged(String path, byte[] data) {
+        _tracer.info("onNodeChanged. Path: " + path + "; Data: " + new String(data, Charset.forName("utf-8")));
+        String tableName = getTableNameFromPath(path);
+        if (tableName == null) {
+            _tracer.debug("Can NOT parse tableName from path. " + path);
+            return;
+        }
+        ConfigurationReciever<ConfigurationData> receiver = (ConfigurationReciever<ConfigurationData>) _receivers.get(tableName);
+        if (receiver == null) {
+            _tracer.debug("Can NOT find receiver by tableName. " + tableName);
+            return;
+        }
+        ConfigurationData row = (ConfigurationData) ConfigurationDecoder.decode(data, receiver.getClazz());
+        if (row == null) {
+            _tracer.debug("Can NOT decode the data to class[" + receiver.getClazz().getName() + ". JSonString: " + new String(data, Charset.forName("utf-8")));
+            return;
+        }
 
-	public ZKBridge getBridge(String tableNames) {
-		return getBridge(tableNames, null, null);
-	}
+        if (!checkConfigurationRow(row, receiver))
+            return;
 
-	public synchronized ZKBridge getBridge(String tableName, String userName, String password) {
-		ZKBridge bridge = _bridges.get(tableName);
-		if (bridge == null) {
-			if (tableName.equalsIgnoreCase(""))
-				bridge = new ZKBridge(_settings.getServers(), "", userName, password);
-			else
-				bridge = new ZKBridge(_settings.getServers(), tableName, userName, password);
-			_bridges.put(tableName, bridge);
-			bridge.register(this);
-		}
-		return bridge;
-	}
+        try {
+            _tracer.error("Received node changed.\r\n" + receiver.toString() + "\r\n" + row.toString());
+            receiver.onConfigurationReceived(path, row);
+        } catch (Throwable t) {
+            _tracer.error("onConfigurationReceived error.", t);
+        }
+    }
 
-	public void dispose() {
-		for (Entry<String, ZKBridge> entry : _bridges.entrySet())
-			entry.getValue().close();
-		_bridges.clear();
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public void onNodeRemoved(String path) {
+        String tableName = getTableNameFromPath(path);
+        if (tableName == null)
+            return;
+        ConfigurationReciever<ConfigurationData> receiver = (ConfigurationReciever<ConfigurationData>) _receivers.get(tableName);
+        if (receiver == null)
+            return;
+        receiver.onConfigurationRemoved(path);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void onNodeChanged(String tableName, String key, byte[] data) {
-		ConfigurationData row = (ConfigurationData) ConfigurationDecoder.decode(data, ConfigurationTableManager.getClass(tableName));
-		if (row == null)
-			return;
-		ConfigurationReciever<ConfigurationData> receiver = (ConfigurationReciever<ConfigurationData>) _receivers.get(tableName);
-		if (receiver == null)
-			return;
-		receiver.onConfigurationReceived(key, row);
-	}
+    private String getTableNameFromPath(String path) {
+        String[] temp = path.split("/");
+        if (temp.length < 2)
+            return null;
+        return temp[1];
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void onNodeRemoved(String tableName, String key) {
-		ConfigurationReciever<ConfigurationData> receiver = (ConfigurationReciever<ConfigurationData>) _receivers.get(tableName);
-		if (receiver == null)
-			return;
-		receiver.onConfigurationRemoved(key);
-	}
+    private boolean checkConfigurationRow(ConfigurationData row, ConfigurationReciever<ConfigurationData> receiver) {
+        if (!(row instanceof ConfigurationRow))
+            return true;
+        ConfigurationRow r = (ConfigurationRow) row;
+
+        if (!r.getEnable()) {
+            _tracer.debug("Configuration is NOT enabled.\r\n" + r.toString() + "\r\n" + receiver.toString());
+            return false;
+        }
+
+        String service = r.getServiceName();
+        if (service == null) {
+            _tracer.debug("ServcieName is NULL.\r\n" + r.toString() + "\r\n" + receiver.toString());
+            return false;
+        }
+        if (!service.equalsIgnoreCase(receiver.getServiceName()) && !service.equals("*")) {
+            _tracer.debug("ServcieName do NOT match receiver.\r\n" + r.toString() + "\r\n" + receiver.toString());
+            return false;
+        }
+
+        String computer = r.getComputerName();
+        if (computer == null) {
+            _tracer.debug("ComputerName is NULL.\r\n" + r.toString() + "\r\n" + receiver.toString());
+            return false;
+        }
+        if (!computer.equalsIgnoreCase(receiver.getComputerName()) && !computer.equals("*")) {
+            _tracer.debug("ComputerName do NOT match receiver.\r\n" + r.toString() + "\r\n" + receiver.toString());
+            return false;
+        }
+
+        String module = r.getModuleName();
+        if (module == null) {
+            _tracer.debug("ModuleName is NULL.\r\n" + r.toString() + "\r\n" + receiver.toString());
+            return false;
+        }
+        if (!module.equalsIgnoreCase(receiver.getModuleName()) && !module.equals("*")) {
+            _tracer.debug("ModuleName do NOT match receiver.\r\n" + r.toString() + "\r\n" + receiver.toString());
+            return false;
+        }
+
+        return true;
+    }
 }

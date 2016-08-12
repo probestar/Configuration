@@ -1,5 +1,4 @@
 /**
- *
  * Copyright (c) 2015
  * All rights reserved.
  *
@@ -10,13 +9,12 @@
  * @QQ 344137375
  * @date Jul 31, 2015 2:23:18 PM
  * @version V1.0
- * @Description 
- *
+ * @Description
  */
 
 package com.probestar.configurationtools;
 
 public enum CTResultType {
-							Print,
-							Quit,
+    Print,
+    Quit,
 }

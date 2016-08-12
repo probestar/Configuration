@@ -1,5 +1,4 @@
 /**
- *
  * Copyright (c) 2015
  * All rights reserved.
  *
@@ -10,31 +9,31 @@
  * @QQ 344137375
  * @date Jul 30, 2015 5:40:50 PM
  * @version V1.0
- * @Description 
- *
+ * @Description
  */
 
 package com.probestar.configurationtools.handler;
 
-import java.util.ArrayList;
 
 import com.probestar.configurationtools.CTResult;
 
+import java.util.ArrayList;
+
 public class VersionHandler extends CTHandler {
 
-	public ArrayList<String> getAilas() {
-		ArrayList<String> list = new ArrayList<String>();
-		list.add("ver");
-		list.add("v");
-		return list;
-	}
+    public ArrayList<String> getAilas() {
+        ArrayList<String> list = new ArrayList<String>();
+        list.add("ver");
+        list.add("v");
+        return list;
+    }
 
-	public String getCommand() {
-		return "version";
-	}
+    public String getCommand() {
+        return "version";
+    }
 
-	public CTResult handle(String[] paramters) throws Throwable {
-		return new CTResult("Version: 1.0.0.");
-	}
+    public CTResult handle(String[] paramters) throws Throwable {
+        return new CTResult("Version: 1.0.0.");
+    }
 
 }

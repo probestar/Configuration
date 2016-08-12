@@ -1,5 +1,4 @@
 /**
- *
  * Copyright (c) 2015
  * All rights reserved.
  *
@@ -10,34 +9,33 @@
  * @QQ 344137375
  * @date Jul 31, 2015 2:24:56 PM
  * @version V1.0
- * @Description 
- *
+ * @Description
  */
 
 package com.probestar.configurationtools;
 
 public class CTResult {
-	private CTResultType _type;
-	private String _context;
+    private CTResultType _type;
+    private String _context;
 
-	public CTResult(String context) {
-		this(CTResultType.Print, context);
-	}
-	
-	public CTResult(CTResultType type, String context) {
-		_type = type;
-		_context = context;
-	}
-	
-	public CTResultType getType() {
-		return _type;
-	}
-	
-	public String getContext() {
-		return _context;
-	}
-	
-	public void appendContext(String context) {
-		_context += context;
-	}
+    public CTResult(String context) {
+        this(CTResultType.Print, context);
+    }
+
+    public CTResult(CTResultType type, String context) {
+        _type = type;
+        _context = context;
+    }
+
+    public CTResultType getType() {
+        return _type;
+    }
+
+    public String getContext() {
+        return _context;
+    }
+
+    public void appendContext(String context) {
+        _context += context;
+    }
 }

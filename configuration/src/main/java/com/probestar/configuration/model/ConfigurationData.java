@@ -1,5 +1,4 @@
 /**
- *
  * Copyright (c) 2015
  * All rights reserved.
  *
@@ -10,8 +9,7 @@
  * @QQ 344137375
  * @date Jul 28, 2015 5:25:17 PM
  * @version V1.0
- * @Description 
- *
+ * @Description
  */
 
 package com.probestar.configuration.model;
@@ -19,16 +17,16 @@ package com.probestar.configuration.model;
 import java.util.UUID;
 
 public class ConfigurationData {
-	private transient String _key;
+    private transient String _key;
 
-	public String getKey() {
-		if (_key == null)
-			_key = UUID.randomUUID().toString();
-		return _key;
-	}
+    public String getKey() {
+        if (_key == null)
+            _key = UUID.randomUUID().toString();
+        return _key;
+    }
 
-	@Override
-	public String toString() {
-		return "";
-	}
+    @Override
+    public String toString() {
+        return "";
+    }
 }

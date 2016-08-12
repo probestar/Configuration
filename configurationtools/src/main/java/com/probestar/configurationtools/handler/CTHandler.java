@@ -1,5 +1,4 @@
 /**
- *
  * Copyright (c) 2015
  * All rights reserved.
  *
@@ -10,70 +9,90 @@
  * @QQ 344137375
  * @date Jul 27, 2015 4:10:45 PM
  * @version V1.0
- * @Description 
- *
+ * @Description
  */
 
 package com.probestar.configurationtools.handler;
 
-import java.util.ArrayList;
 
-import com.probestar.configuration.Configuration;
+import com.probestar.configuration.model.ConfigurationTable;
 import com.probestar.configuration.zk.ZKBridge;
 import com.probestar.configurationtools.CTHelpSettings;
 import com.probestar.configurationtools.CTResult;
 import com.probestar.configurationtools.CTSession;
+import com.probestar.configurationtools.CTSettings;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public abstract class CTHandler implements Comparable<CTHandler> {
 
-	private long _watch;
+    private long _watch;
+    private HashMap<String, ZKBridge> _bridges;
 
-	public abstract String getCommand();
+    public CTHandler() {
+        _bridges = new HashMap<String, ZKBridge>();
+    }
 
-	public abstract CTResult handle(String[] paramters) throws Throwable;
+    public abstract String getCommand();
 
-	public ArrayList<String> getAilas() {
-		return null;
-	}
+    public abstract CTResult handle(String[] paramters) throws Throwable;
 
-	public ZKBridge getBridge() {
-		String name = CTSession.getInstance().getOperatorName();
-		String pwd = CTSession.getInstance().getPassword();
-		return Configuration.getInstance().getBridge(CTSession.getInstance().getCurrentTable(), name, pwd);
-	}
+    public ArrayList<String> getAilas() {
+        return null;
+    }
 
-	public String getHelp() {
-		StringBuilder sb = new StringBuilder();
-		sb.append("Command: ");
-		sb.append(getCommand());
-		sb.append("\r\n");
-		sb.append(CTHelpSettings.getInstance().getHelp(getCommand()));
-		sb.append("\r\nAilas: ");
-		if (getAilas() == null) {
-			sb.append("nil");
-		} else {
-			for (int i = 0; i < getAilas().size(); i++) {
-				sb.append(getAilas().get(i));
-				if (i < getAilas().size() - 1)
-					sb.append(", ");
-			}
-		}
-		return sb.toString();
-	}
+    public ZKBridge getBridge() {
+        return getBridge(CTSession.getInstance().getCurrentTable());
+    }
 
-	public void startWatch() {
-		_watch = System.currentTimeMillis();
-	}
+    public synchronized ZKBridge getBridge(String tableName) {
+        ZKBridge bridge = _bridges.get(tableName);
+        if (bridge == null) {
+            String name = CTSession.getInstance().getOperatorName();
+            String pwd = CTSession.getInstance().getPassword();
+            if (tableName.equals(ConfigurationTable.Root))
+                bridge = new ZKBridge(CTSettings.getInstance().getZookeepers(), name, pwd);
+            else
+                bridge = new ZKBridge(CTSettings.getInstance().getZookeepers() + "/" + tableName, name, pwd);
+            bridge.start();
+            _bridges.put(tableName, bridge);
+        }
+        return bridge;
+    }
 
-	public long stopWatch() {
-		return System.currentTimeMillis() - _watch;
-	}
+    public String getHelp() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Command: ");
+        sb.append(getCommand());
+        sb.append("\r\n");
+        sb.append(CTHelpSettings.getInstance().getHelp(getCommand()));
+        sb.append("\r\nAilas: ");
+        if (getAilas() == null) {
+            sb.append("nil");
+        } else {
+            for (int i = 0; i < getAilas().size(); i++) {
+                sb.append(getAilas().get(i));
+                if (i < getAilas().size() - 1)
+                    sb.append(", ");
+            }
+        }
+        return sb.toString();
+    }
 
-	public String toString() {
-		return "CTHandler: " + getCommand();
-	}
+    public void startWatch() {
+        _watch = System.currentTimeMillis();
+    }
 
-	public int compareTo(CTHandler o) {
-		return getCommand().compareTo(o.getCommand());
-	}
+    public long stopWatch() {
+        return System.currentTimeMillis() - _watch;
+    }
+
+    public String toString() {
+        return "CTHandler: " + getCommand();
+    }
+
+    public int compareTo(CTHandler o) {
+        return getCommand().compareTo(o.getCommand());
+    }
 }
