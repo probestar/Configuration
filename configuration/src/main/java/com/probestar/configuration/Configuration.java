@@ -50,8 +50,9 @@ public class Configuration implements ZKBridgeListener {
         _settings = ConfigurationSettings.getInstance();
         _bridge = new ZKBridge(_settings.getZookeepers());
         _bridge.register(this);
+        _receivers = new HashMap<>();
+
         _bridge.start();
-        _receivers = new HashMap<String, ConfigurationReciever<? extends ConfigurationData>>();
     }
 
     public void registerConfigurationTracerFactory(ConfigurationTracerFactory factory) {

@@ -45,7 +45,7 @@ public class ZKBridge implements Watcher {
         _conn = conn;
         _name = userName;
         _password = password;
-        _listeners = new ArrayList<ZKBridgeListener>();
+        _listeners = new ArrayList<>();
     }
 
     public void start() {
@@ -114,7 +114,7 @@ public class ZKBridge implements Watcher {
     }
 
     public byte[] get(String key) throws Throwable {
-        byte[] b = null;
+        byte[] b;
         String path = getPath(key);
         b = _zk.getData(path, false, null);
         _tracer.debug("%s: %s", path, PSConvert.bytes2HexString(b));
@@ -215,7 +215,7 @@ public class ZKBridge implements Watcher {
     }
 
     private List<ACL> createAclList(String name, String pwd) throws Exception {
-        List<ACL> list = new ArrayList<ACL>();
+        List<ACL> list = new ArrayList<>();
         if (name != null && pwd != null) {
             Id id = new Id("digest", DigestAuthenticationProvider.generateDigest(String.format("%s:%s", name, pwd)));
             ACL acl = new ACL(ZooDefs.Perms.ALL, id);
