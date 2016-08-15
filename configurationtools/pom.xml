@@ -19,7 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>com.probestar</groupId>
-            <artifactId>configurationtest</artifactId>
+            <artifactId>configuration</artifactId>
             <version>0.0.1-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
